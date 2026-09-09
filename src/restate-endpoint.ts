@@ -57,7 +57,7 @@ export class RestateEndpoint
 			const target = wrapper.instance?.constructor as Type | undefined;
 			if (!target || !getServiceMetadata(target)) continue;
 
-			if (!wrapper.isDependencyTreeStatic()) {
+			if (wrapper.isTransient || !wrapper.isDependencyTreeStatic()) {
 				throw new Error(
 					`${target.name} must be a singleton: Restate classes can't be request or transient scoped, nor depend on providers that are.`,
 				);

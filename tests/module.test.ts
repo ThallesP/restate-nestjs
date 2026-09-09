@@ -291,6 +291,22 @@ describe("RestateModule", () => {
 			);
 		});
 
+		it("rejects transient-scoped classes", async () => {
+			@Injectable({ scope: Scope.TRANSIENT })
+			@Service()
+			class TransientService {
+				@Handler()
+				async greet(_ctx: Context) {
+					return "";
+				}
+			}
+
+			await expectInitError(
+				[TransientService],
+				"TransientService must be a singleton",
+			);
+		});
+
 		it("rejects ref() of undecorated classes", () => {
 			class Plain {}
 			expect(() => ref(Plain)).toThrow("Plain is not a Restate class.");
