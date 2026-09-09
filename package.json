@@ -45,8 +45,7 @@
 		"dist"
 	],
 	"publishConfig": {
-		"access": "public",
-		"provenance": true
+		"access": "public"
 	},
 	"peerDependencies": {
 		"@nestjs/common": "^11.0.0 || ^12.0.0",
