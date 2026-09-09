@@ -1,0 +1,68 @@
+{
+	"name": "@thallesp/nestjs-restate",
+	"version": "0.1.0",
+	"description": "Restate for NestJS",
+	"author": "Thalles Passos",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ThallesP/nestjs-restate.git"
+	},
+	"engines": {
+		"node": ">=22.22.1"
+	},
+	"packageManager": "bun@1.4.0",
+	"keywords": [
+		"nestjs",
+		"restate",
+		"durable-execution",
+		"workflows",
+		"nestjs-restate"
+	],
+	"type": "module",
+	"scripts": {
+		"build": "unbuild",
+		"prepack": "bun run unbuild",
+		"lint": "biome lint",
+		"format": "biome format",
+		"check": "biome check && tsc --noEmit",
+		"test": "vitest run",
+		"test:watch": "vitest"
+	},
+	"types": "dist/index.d.mts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.mts",
+			"import": "./dist/index.mjs",
+			"default": "./dist/index.mjs"
+		}
+	},
+	"files": [
+		"dist"
+	],
+	"peerDependencies": {
+		"@nestjs/common": "^11.0.0 || ^12.0.0",
+		"@nestjs/core": "^11.0.0 || ^12.0.0",
+		"@restatedev/restate-sdk": ">=1.8.0 <2.0.0",
+		"@restatedev/restate-sdk-clients": ">=1.8.0 <2.0.0",
+		"reflect-metadata": "^0.1.13 || ^0.2.0"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.5.12",
+		"@nestjs/common": "^12.0.1",
+		"@nestjs/core": "^12.0.1",
+		"@nestjs/testing": "^12.0.1",
+		"@restatedev/restate-sdk": "^1.17.0",
+		"@restatedev/restate-sdk-clients": "^1.17.0",
+		"@swc/core": "^1.16.2",
+		"@tsconfig/node22": "^22.0.6",
+		"@types/node": "^22.20.2",
+		"reflect-metadata": "^0.2.2",
+		"rxjs": "^7.8.2",
+		"testcontainers": "^12.1.0",
+		"typescript": "^5.9.3",
+		"unbuild": "^3.6.1",
+		"unplugin-swc": "^1.6.0",
+		"vitest": "^5.0.0"
+	}
+}
