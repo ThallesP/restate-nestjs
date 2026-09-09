@@ -1,31 +1,30 @@
 import type { Type } from "@nestjs/common";
 import type {
-	Context,
 	ObjectSharedContext,
 	ServiceDefinition,
 	VirtualObjectDefinition,
+	WorkflowContext,
 	WorkflowDefinition,
 	WorkflowSharedContext,
 } from "@restatedev/restate-sdk";
 import type { ServiceMetadata } from "./decorators.ts";
 import { RESTATE_SERVICE_KEY } from "./symbols.ts";
 
+// biome-ignore lint/suspicious/noExplicitAny: matches contexts with any typed state
+type AnyState = any;
+
 /**
  * Only the methods of `T` that look like Restate handlers: `(ctx, input?) => Promise`.
  */
 export type Handlers<T> = {
-	[K in keyof T as T[K] extends (
-		ctx: infer C,
-		...args: never[]
-	) => Promise<unknown>
-		? C extends Context
-			? K
-			: never
+	[K in keyof T as T[K] extends (...args: infer P) => Promise<unknown>
+		? P["length"] extends 0
+			? never
+			: WorkflowContext<AnyState> extends P[0]
+				? K
+				: never
 		: never]: T[K];
 };
-
-// biome-ignore lint/suspicious/noExplicitAny: matches contexts with any typed state
-type AnyState = any;
 
 type ContextKind<C> =
 	C extends WorkflowSharedContext<AnyState>

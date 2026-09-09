@@ -1,13 +1,13 @@
 import { Injectable, SetMetadata } from "@nestjs/common";
 import { SCOPE_OPTIONS_METADATA } from "@nestjs/common/constants.js";
 import type {
-	Context,
 	DefaultServiceOptions,
-	ObjectContext,
 	ObjectHandlerOpts,
 	ObjectOptions,
 	ServiceOptions as SdkServiceOptions,
 	WorkflowOptions as SdkWorkflowOptions,
+	WorkflowContext,
+	WorkflowSharedContext,
 } from "@restatedev/restate-sdk";
 import { RESTATE_HANDLER_KEY, RESTATE_SERVICE_KEY } from "./symbols.ts";
 
@@ -43,32 +43,33 @@ export type HandlerMetadata = {
 	options: HandlerOptions;
 };
 
-// biome-ignore lint/suspicious/noExplicitAny: the context kind is checked by WithContext
+// biome-ignore lint/suspicious/noExplicitAny: the context is checked by AcceptsContext
 type HandlerMethod<I, O> = (ctx: any, input: I) => Promise<O>;
-
-/**
- * Resolves to `never` unless the method takes a Restate context as its first parameter.
- */
-type WithContext<F> = F extends (ctx: infer C, ...args: never[]) => unknown
-	? C extends Context
-		? unknown
-		: never
-	: never;
-
-/**
- * Resolves to `never` when the method takes an exclusive context, which shared handlers never get.
- */
-type WithSharedContext<F> = F extends (
-	ctx: infer C,
-	...args: never[]
-) => unknown
-	? C extends ObjectContext<AnyState>
-		? never
-		: WithContext<F>
-	: never;
 
 // biome-ignore lint/suspicious/noExplicitAny: matches contexts with any typed state
 type AnyState = any;
+
+/**
+ * Resolves to `never` unless `Ctx` can be passed as the first parameter of `F`.
+ */
+type AcceptsContext<F, Ctx> = F extends (...args: infer P) => unknown
+	? P["length"] extends 0
+		? never
+		: Ctx extends P[0]
+			? unknown
+			: never
+	: never;
+
+/**
+ * `WorkflowContext` is the most capable context, so any method that accepts it
+ * takes a Restate context first.
+ */
+type WithContext<F> = AcceptsContext<F, WorkflowContext<AnyState>>;
+
+/**
+ * Shared handlers only get a shared context, so the parameter must accept one.
+ */
+type WithSharedContext<F> = AcceptsContext<F, WorkflowSharedContext<AnyState>>;
 
 type HandlerDecorator<I, O> = <F extends HandlerMethod<I, O>>(
 	target: object,

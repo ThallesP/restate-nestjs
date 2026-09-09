@@ -75,6 +75,9 @@ class Greeter {
 	@Handler()
 	async wrongContext(_ctx: string): Promise<void> {}
 
+	@Handler()
+	async partialContext(_ctx: Pick<Context, "run">): Promise<void> {}
+
 	onModuleInit() {}
 
 	// biome-ignore lint/correctness/noUnusedPrivateClassMembers: asserts private methods are hidden from clients
@@ -99,6 +102,20 @@ class Counter {
 	// @ts-expect-error shared handlers get a shared context
 	@Shared()
 	async exclusiveShared(_ctx: ObjectContext): Promise<number> {
+		return 0;
+	}
+
+	// @ts-expect-error shared handlers get a shared context
+	@Shared()
+	async optionalExclusive(_ctx?: ObjectContext): Promise<number> {
+		return 0;
+	}
+
+	// @ts-expect-error shared handlers get a shared context
+	@Shared()
+	async needsSet(
+		_ctx: ObjectSharedContext & Pick<ObjectContext, "set">,
+	): Promise<number> {
 		return 0;
 	}
 }
