@@ -18,6 +18,12 @@ import {
 } from "./restate-module-definition.ts";
 
 /**
+ * How long `onModuleDestroy` waits for in-flight invocations before closing their
+ * connections. Restate retries the invocations that get cut off.
+ */
+const SHUTDOWN_GRACE_MS = 5_000;
+
+/**
  * Serves every `@Service()`, `@VirtualObject()` and `@Workflow()` provider over HTTP/2
  * once the application has bootstrapped, and stops serving when it shuts down.
  */
@@ -54,6 +60,7 @@ export class RestateEndpoint
 		const definitions = new Map<string, RestateDefinition>();
 
 		for (const wrapper of this.discoveryService.getProviders()) {
+			if (wrapper.isAlias) continue;
 			const target = wrapper.instance?.constructor as Type | undefined;
 			if (!target || !getServiceMetadata(target)) continue;
 
@@ -122,6 +129,10 @@ export class RestateEndpoint
 			server.close(() => resolve()),
 		);
 		for (const session of this.sessions) session.close();
+		const forceClose = setTimeout(() => {
+			for (const session of this.sessions) session.destroy();
+		}, SHUTDOWN_GRACE_MS);
 		await closed;
+		clearTimeout(forceClose);
 	}
 }

@@ -67,6 +67,14 @@ class Greeter {
 		return 1;
 	}
 
+	// @ts-expect-error the first parameter must be a Restate context
+	@Handler()
+	async noContext(): Promise<void> {}
+
+	// @ts-expect-error the first parameter must be a Restate context
+	@Handler()
+	async wrongContext(_ctx: string): Promise<void> {}
+
 	onModuleInit() {}
 
 	// biome-ignore lint/correctness/noUnusedPrivateClassMembers: asserts private methods are hidden from clients
@@ -87,6 +95,12 @@ class Counter {
 	async get(_ctx: ObjectSharedContext): Promise<number> {
 		return 0;
 	}
+
+	// @ts-expect-error shared handlers get a shared context
+	@Shared()
+	async exclusiveShared(_ctx: ObjectContext): Promise<number> {
+		return 0;
+	}
 }
 
 @Workflow()
@@ -101,6 +115,17 @@ class Signup {
 
 	@Handler()
 	async status(_ctx: WorkflowSharedContext): Promise<string> {
+		return "";
+	}
+
+	@Shared()
+	async sharedStatus(_ctx: WorkflowSharedContext): Promise<string> {
+		return "";
+	}
+
+	// @ts-expect-error shared handlers get a shared context
+	@Shared()
+	async exclusiveShared(_ctx: WorkflowContext): Promise<string> {
 		return "";
 	}
 }

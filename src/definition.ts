@@ -13,6 +13,12 @@ export type RestateDefinition =
 // biome-ignore lint/suspicious/noExplicitAny: bound handler, typed by the SDK at registration
 type BoundHandler = (ctx: any, input: any) => Promise<any>;
 
+const RESERVED_WORKFLOW_HANDLERS = [
+	"workflowSubmit",
+	"workflowAttach",
+	"workflowOutput",
+];
+
 function wrapHandler(
 	target: Type,
 	{ kind }: ServiceMetadata,
@@ -35,6 +41,11 @@ function wrapHandler(
 			: restate.handlers.object.exclusive(options, fn);
 	}
 
+	if (RESERVED_WORKFLOW_HANDLERS.includes(name)) {
+		throw new Error(
+			`${target.name}.${name}: "${name}" is reserved by Restate workflows.`,
+		);
+	}
 	if (name !== "run") return restate.handlers.workflow.shared(options, fn);
 	if (shared) {
 		throw new Error(
@@ -54,12 +65,15 @@ function collectHandlers(
 	const handlers: Record<string, BoundHandler> = {};
 
 	for (const name of metadataScanner.getAllMethodNames(prototype)) {
-		const method = prototype[name];
 		const handlerMetadata: HandlerMetadata | undefined = Reflect.getMetadata(
 			RESTATE_HANDLER_KEY,
-			method,
+			prototype[name],
 		);
 		if (!handlerMetadata) continue;
+		// the instance may have replaced the method (e.g. in its constructor)
+		const method: BoundHandler = (instance as Record<string, BoundHandler>)[
+			name
+		];
 		handlers[name] = wrapHandler(
 			target,
 			metadata,

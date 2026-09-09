@@ -1,6 +1,9 @@
-import { Injectable, SetMetadata, applyDecorators } from "@nestjs/common";
+import { Injectable, SetMetadata } from "@nestjs/common";
+import { SCOPE_OPTIONS_METADATA } from "@nestjs/common/constants.js";
 import type {
+	Context,
 	DefaultServiceOptions,
+	ObjectContext,
 	ObjectHandlerOpts,
 	ObjectOptions,
 	ServiceOptions as SdkServiceOptions,
@@ -40,13 +43,43 @@ export type HandlerMetadata = {
 	options: HandlerOptions;
 };
 
-// biome-ignore lint/suspicious/noExplicitAny: the context type is checked by the SDK
+// biome-ignore lint/suspicious/noExplicitAny: the context kind is checked by WithContext
 type HandlerMethod<I, O> = (ctx: any, input: I) => Promise<O>;
+
+/**
+ * Resolves to `never` unless the method takes a Restate context as its first parameter.
+ */
+type WithContext<F> = F extends (ctx: infer C, ...args: never[]) => unknown
+	? C extends Context
+		? unknown
+		: never
+	: never;
+
+/**
+ * Resolves to `never` when the method takes an exclusive context, which shared handlers never get.
+ */
+type WithSharedContext<F> = F extends (
+	ctx: infer C,
+	...args: never[]
+) => unknown
+	? C extends ObjectContext<AnyState>
+		? never
+		: WithContext<F>
+	: never;
+
+// biome-ignore lint/suspicious/noExplicitAny: matches contexts with any typed state
+type AnyState = any;
 
 type HandlerDecorator<I, O> = <F extends HandlerMethod<I, O>>(
 	target: object,
 	propertyKey: string | symbol,
-	descriptor: TypedPropertyDescriptor<F>,
+	descriptor: TypedPropertyDescriptor<F> & WithContext<F>,
+) => void;
+
+type SharedHandlerDecorator<I, O> = <F extends HandlerMethod<I, O>>(
+	target: object,
+	propertyKey: string | symbol,
+	descriptor: TypedPropertyDescriptor<F> & WithSharedContext<F>,
 ) => void;
 
 function componentDecorator(
@@ -65,16 +98,17 @@ function componentDecorator(
 		metadata,
 		options,
 	};
-	return applyDecorators(
-		Injectable(),
-		SetMetadata(RESTATE_SERVICE_KEY, serviceMetadata),
-	);
+	return (target) => {
+		// keep the scope from an @Injectable() applied below this decorator
+		Injectable(Reflect.getMetadata(SCOPE_OPTIONS_METADATA, target))(target);
+		SetMetadata(RESTATE_SERVICE_KEY, serviceMetadata)(target);
+	};
 }
 
 function handlerDecorator<I, O>(
 	shared: boolean,
 	options: HandlerOptions<I, O>,
-): HandlerDecorator<I, O> {
+): MethodDecorator {
 	const handlerMetadata: HandlerMetadata = { shared, options };
 	return SetMetadata(RESTATE_HANDLER_KEY, handlerMetadata);
 }
@@ -160,9 +194,10 @@ export const Handler = <I = any, O = any>(
 
 /**
  * Exposes the method as a shared Restate handler.
- * Only valid on `@VirtualObject()` and `@Workflow()` classes.
+ * Only valid on `@VirtualObject()` and `@Workflow()` classes, with an
+ * `ObjectSharedContext` or `WorkflowSharedContext` parameter.
  */
 // biome-ignore lint/suspicious/noExplicitAny: untyped by default, narrowed by the serdes passed in
 export const Shared = <I = any, O = any>(
 	options: HandlerOptions<I, O> = {},
-): HandlerDecorator<I, O> => handlerDecorator(true, options);
+): SharedHandlerDecorator<I, O> => handlerDecorator(true, options);

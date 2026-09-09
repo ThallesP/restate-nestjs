@@ -79,6 +79,9 @@ The endpoint is served on its own HTTP/2 port and does not touch your HTTP adapt
 > [!NOTE]
 > Restate classes are discovered from every module in the application, so provide them wherever they fit in your module tree. They must be singletons: request or transient scope (directly or through a dependency) is rejected at startup.
 
+> [!IMPORTANT]
+> The endpoint starts in `onApplicationBootstrap` and NestJS runs that hook for `RestateModule` before the modules that import it. Set up anything a handler needs in `onModuleInit` (which always runs first) rather than `onApplicationBootstrap`. On shutdown the order is reversed, so your providers are destroyed before the endpoint stops. Invocations that hit either window fail and Restate retries them, so no work is lost.
+
 ## Decorators
 
 ### `@Service()`
@@ -194,6 +197,8 @@ export class Checkout {
 
 Only handler-shaped methods (`(ctx, input?) => Promise`) show up on the client. Constructor dependencies, lifecycle hooks and helpers are hidden.
 
+`ref()` works from the class type alone, so two things are not checked at compile time: a handler-shaped method without `@Handler()` still appears on the client (Restate returns 404 for it), and a `@VirtualObject()` or `@Workflow()` whose handlers only declare `Context` is inferred as a service. Type the context parameter as `ObjectContext`/`ObjectSharedContext` or `WorkflowContext`/`WorkflowSharedContext` to get the right definition kind.
+
 ## Calling from outside Restate
 
 `RestateIngress` is the SDK's ingress client, connected with the `ingress` module option. Inject it anywhere:
@@ -261,7 +266,7 @@ The provider that serves the endpoint is exported as `RestateEndpoint`:
 | `port` | The bound port, or `undefined` before bootstrap. Useful with `port: 0` in tests. |
 | `getDefinitions()` | The SDK definitions built from the discovered classes, for example to pass to `RestateTestEnvironment`. |
 
-The server starts on `onApplicationBootstrap` and stops on `onModuleDestroy`, so `app.close()` and `enableShutdownHooks()` behave as expected.
+The server starts on `onApplicationBootstrap` and stops on `onModuleDestroy`, so `app.close()` and `enableShutdownHooks()` behave as expected. Shutdown waits up to 5 seconds for in-flight invocations, then closes their connections and lets Restate retry them.
 
 ## Testing
 

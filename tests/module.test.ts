@@ -166,6 +166,68 @@ describe("RestateModule", () => {
 		await app.close();
 	});
 
+	it("ignores useExisting aliases of Restate classes", async () => {
+		@Module({
+			imports: [RestateModule.forRoot({ port: 0 })],
+			providers: [
+				Greetings,
+				Greeter,
+				{ provide: "GREETER_ALIAS", useExisting: Greeter },
+			],
+		})
+		class AppModule {}
+
+		const app = await NestFactory.createApplicationContext(AppModule, {
+			logger: false,
+			abortOnError: false,
+		});
+		await app.init();
+		const names = app
+			.get(RestateEndpoint)
+			.getDefinitions()
+			.map((definition) => definition.name);
+		await app.close();
+
+		expect(names).toEqual(["Greeter"]);
+	});
+
+	it("invokes methods replaced on the instance", async () => {
+		@Service()
+		class Wrapped {
+			constructor() {
+				const original = this.greet.bind(this);
+				this.greet = async (ctx, name) =>
+					`wrapped ${await original(ctx, name)}`;
+			}
+
+			@Handler()
+			async greet(_ctx: Context, name: string) {
+				return name;
+			}
+		}
+
+		@Module({
+			imports: [RestateModule.forRoot({ port: 0 })],
+			providers: [Wrapped],
+		})
+		class AppModule {}
+
+		const app = await NestFactory.createApplicationContext(AppModule, {
+			logger: false,
+			abortOnError: false,
+		});
+		await app.init();
+		const [definition] = app
+			.get(RestateEndpoint)
+			.getDefinitions() as unknown as Array<{
+			service: Record<string, (ctx: unknown, input: string) => Promise<string>>;
+		}>;
+		const result = await definition.service.greet({}, "x");
+		await app.close();
+
+		expect(result).toBe("wrapped x");
+	});
+
 	it("discovers classes provided in nested modules", async () => {
 		@Module({ providers: [Counter] })
 		class CounterModule {}
@@ -304,6 +366,42 @@ describe("RestateModule", () => {
 			await expectInitError(
 				[TransientService],
 				"TransientService must be a singleton",
+			);
+		});
+
+		it("rejects reserved workflow handler names", async () => {
+			@Workflow()
+			class Reserved {
+				@Handler()
+				async run(_ctx: Context) {
+					return "";
+				}
+
+				@Handler()
+				async workflowSubmit(_ctx: ObjectSharedContext) {
+					return 1;
+				}
+			}
+
+			await expectInitError(
+				[Reserved],
+				'Reserved.workflowSubmit: "workflowSubmit" is reserved by Restate workflows.',
+			);
+		});
+
+		it("keeps the scope of an @Injectable() applied below the class decorator", async () => {
+			@Service()
+			@Injectable({ scope: Scope.REQUEST })
+			class RequestScopedService {
+				@Handler()
+				async greet(_ctx: Context) {
+					return "";
+				}
+			}
+
+			await expectInitError(
+				[RequestScopedService],
+				"RequestScopedService must be a singleton",
 			);
 		});
 
