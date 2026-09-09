@@ -102,6 +102,12 @@ export class RestateEndpoint
 		});
 		this.server = server;
 
+		if (services.length === 0) {
+			this.logger.warn(
+				`No @Service(), @VirtualObject() or @Workflow() providers found, serving an empty endpoint on port ${this.port}`,
+			);
+			return;
+		}
 		this.logger.log(
 			`Serving ${services.map((service) => service.name).join(", ")} on port ${this.port}`,
 		);

@@ -39,6 +39,12 @@ describe("e2e", () => {
 		).resolves.toBe("Hello world");
 	});
 
+	it("binds this to the provider instance", async () => {
+		await expect(
+			ingress.serviceClient(ref(Greeter)).greetSelf("self"),
+		).resolves.toBe("Hello self");
+	});
+
 	it("invokes a handler without input", async () => {
 		await expect(ingress.serviceClient(ref(Greeter)).ping()).resolves.toBe(
 			"pong",

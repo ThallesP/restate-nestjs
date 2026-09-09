@@ -41,6 +41,11 @@ export class Greeter {
 		return "pong";
 	}
 
+	@Handler()
+	async greetSelf(ctx: Context, name: string) {
+		return this.greet(ctx, name);
+	}
+
 	notAHandler() {
 		return "hidden";
 	}

@@ -89,6 +89,7 @@ describe("RestateModule", () => {
 		expect(greeter?.handlers.map((handler) => handler.name)).toEqual([
 			"greet",
 			"ping",
+			"greetSelf",
 		]);
 
 		const counter = manifest.services.find(
